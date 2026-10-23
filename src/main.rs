@@ -3,6 +3,7 @@ mod attachments;
 mod keychain;
 mod mcp;
 mod provider;
+mod updates;
 
 use std::{collections::VecDeque, fs, path::PathBuf, sync::mpsc::{self, Receiver, Sender}, thread};
 use eframe::egui::{self, Color32, RichText, ScrollArea, TextEdit};
@@ -167,6 +168,8 @@ struct App {
     checking_key: bool,
     key_check_generation: u64,
     key_check_status: Option<(bool, String)>,
+    checking_update: bool,
+    update_result: Option<Result<updates::UpdateCheck, String>>,
     history: Vec<ChatMessage>,
     attachments: Vec<Attachment>,
     input: String,
@@ -194,7 +197,8 @@ impl Default for App {
         };
         let (tx, rx) = mpsc::channel();
         Self { config, saved_config, api_key, key_saved, checking_key: false,
-            key_check_generation: 0, key_check_status: None, history: vec![], attachments: vec![],
+            key_check_generation: 0, key_check_status: None,
+            checking_update: false, update_result: None, history: vec![], attachments: vec![],
             input: String::new(), status, busy: false, stopping: false,
             cancel: None, tx, rx,
             approvals: VecDeque::new(), workers: Vec::new(),
@@ -211,6 +215,10 @@ impl App {
                     if generation == self.key_check_generation && !self.stopping {
                         self.key_check_status = Some((valid, message));
                     }
+                }
+                Event::UpdateCheck(result) => {
+                    self.checking_update = false;
+                    self.update_result = Some(result);
                 }
                 Event::Done if self.stopping => {
                     self.busy = false;
@@ -317,6 +325,16 @@ impl App {
                 Err(error) => (false, format!("Key check failed: {error}")),
             };
             let _ = tx.send(Event::KeyCheck(generation, valid, message));
+        });
+    }
+
+    fn check_updates(&mut self) {
+        self.checking_update = true;
+        self.update_result = None;
+        self.launch(|tx| {
+            let rt = tokio::runtime::Runtime::new().expect("Tokio runtime");
+            let result = rt.block_on(updates::check()).map_err(|error| format!("{error:#}"));
+            let _ = tx.send(Event::UpdateCheck(result));
         });
     }
 
@@ -466,7 +484,40 @@ impl App {
         }
     }
 
+    fn update_controls(&mut self, ui: &mut egui::Ui) {
+        let version = updates::CURRENT_VERSION.strip_suffix(".0").unwrap_or(updates::CURRENT_VERSION);
+        ui.label(RichText::new(format!("MCP Commander {version}")).strong());
+        ui.horizontal(|ui| {
+            if ui.add_enabled(!self.checking_update, egui::Button::new("Check for updates")).clicked() {
+                self.check_updates();
+            }
+            if self.checking_update { ui.spinner(); }
+        });
+        if let Some(result) = &self.update_result {
+            match result {
+                Ok(updates::UpdateCheck::NoRelease) => { ui.label("No published release yet."); }
+                Ok(updates::UpdateCheck::Available { version, url }) => {
+                    ui.label(RichText::new(format!("Update available: {version}")).color(Color32::from_rgb(110, 210, 140)));
+                    ui.hyperlink_to("Open release", url);
+                }
+                Ok(updates::UpdateCheck::UpToDate { .. }) => { ui.label("You have the latest release."); }
+                Ok(updates::UpdateCheck::AheadOfRelease { version }) => {
+                    ui.label(format!("Installed build is newer than release {version}."));
+                }
+                Ok(updates::UpdateCheck::UnknownVersion { tag, url }) => {
+                    ui.label(format!("Cannot compare release tag {tag}."));
+                    ui.hyperlink_to("Open release", url);
+                }
+                Err(error) => { ui.label(RichText::new(format!("Update check failed: {error}"))
+                    .color(Color32::from_rgb(240, 130, 130))); }
+            }
+        }
+        ui.hyperlink_to("All GitHub releases", updates::RELEASES_URL);
+    }
+
     fn sidebar(&mut self, ui: &mut egui::Ui) {
+        self.update_controls(ui);
+        ui.separator();
         ui.heading("Agent roles");
         ui.add_enabled_ui(!self.busy, |ui| {
             ui.checkbox(&mut self.config.commander_mode, "Commander mode");

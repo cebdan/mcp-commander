@@ -12,6 +12,7 @@ pub enum Event {
     Status(String), Answer(String), Error(String),
     Approval(String, ToolCall, oneshot::Sender<bool>),
     Tools(Vec<String>, Vec<String>), Models(Vec<String>), KeyCheck(u64, bool, String),
+    UpdateCheck(std::result::Result<crate::updates::UpdateCheck, String>),
     WorkerAssigned(usize, String), WorkerStatus(usize, String), WorkerAnswer(usize, String),
     Done,
 }
