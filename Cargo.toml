@@ -1,0 +1,22 @@
+[package]
+name = "mcp-commander"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/cebdan/mcp-commander"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1"
+arboard = "3.7"
+base64 = "0.22"
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "persistence"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rfd = { version = "0.17.2", default-features = false }
+rmcp = { version = "3.6.0", default-features = false, features = ["client", "server", "macros", "schemars", "transport-io", "transport-child-process", "transport-streamable-http-client-reqwest"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+security-framework = "3.7"
+security-framework-sys = "2.17"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "sync"] }
