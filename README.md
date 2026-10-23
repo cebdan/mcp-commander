@@ -1,5 +1,7 @@
 # MCP Commander
 
+Current build: **2026.54** (`2026.54.0` in Cargo and macOS version metadata).
+
 Russian build and command guide: [BUILD_AND_COMMANDS.md](BUILD_AND_COMMANDS.md).
 
 A local macOS app written in Rust. It can chat with Ollama, OpenAI-compatible APIs, Anthropic, Gemini, or DeepSeek and connect to local or HTTP MCP servers. The model can request MCP tool calls; the app asks for approval before each one by default. Commander mode can assign tasks to multiple implementers.

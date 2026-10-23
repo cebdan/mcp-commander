@@ -858,7 +858,9 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default().with_inner_size([1550.0, 900.0]).with_min_inner_size([980.0, 640.0]),
         ..Default::default()
     };
-    eframe::run_native("MCP Commander", options, Box::new(|cc| {
+    let version = env!("CARGO_PKG_VERSION");
+    let title = format!("MCP Commander {}", version.strip_suffix(".0").unwrap_or(version));
+    eframe::run_native(&title, options, Box::new(|cc| {
         cc.egui_ctx.set_theme(egui::Theme::Dark);
         Ok(Box::new(App::default()))
     }))
