@@ -1,0 +1,88 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            architecture: Intel
+          - runner: macos-15
+            architecture: ARM
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)"$/\1/p' Cargo.toml)
+          test "${GITHUB_REF_NAME#v}" = "${version%.0}"
+      - name: Build app
+        run: ./build-app.sh
+      - name: Verify and package app
+        shell: bash
+        run: |
+          codesign --verify --deep --strict 'dist/MCP Commander.app'
+          if [ '${{ matrix.architecture }}' = Intel ]; then test "$(uname -m)" = x86_64; else test "$(uname -m)" = arm64; fi
+          hdiutil create -volname 'MCP Commander' -srcfolder 'dist/MCP Commander.app' -ov -format UDZO "dist/MCP-Commander-${GITHUB_REF_NAME#v}-macOS-${{ matrix.architecture }}.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-${{ matrix.architecture }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release version
+        shell: pwsh
+        run: |
+          $version = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
+          if ("v$($version -replace '\.0$', '')" -ne $env:GITHUB_REF_NAME) { throw "Release tag does not match Cargo version" }
+          "MCP_COMMANDER_VERSION=$version" >> $env:GITHUB_ENV
+          "MCP_COMMANDER_RELEASE_LABEL=$($version -replace '\.0$', '')" >> $env:GITHUB_ENV
+      - name: Build and test
+        shell: pwsh
+        run: |
+          cargo test --locked --all-targets
+          cargo build --locked --release
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) { throw "Inno Setup 6 was not found" }
+          & $compiler packaging\windows.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-x64
+          path: dist/*-Setup.exe
+          if-no-files-found: error
+
+  publish:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 3
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "MCP Commander ${GITHUB_REF_NAME#v}" --notes "Installers for macOS Intel, macOS ARM, and Windows 11 x64. macOS packages use an ad hoc signature; Windows installer is unsigned."

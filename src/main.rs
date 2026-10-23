@@ -641,7 +641,7 @@ impl App {
                     });
             }
         } else {
-            ui.label("API key (macOS Keychain)");
+            ui.label(format!("API key ({})", credential_store_label()));
             if ui.add(TextEdit::singleline(&mut self.api_key).password(true).desired_width(f32::INFINITY)).changed() {
                 self.key_saved = false;
                 self.key_check_generation = self.key_check_generation.wrapping_add(1);
@@ -650,7 +650,7 @@ impl App {
             ui.horizontal(|ui| {
                 if ui.add_enabled(!self.api_key.trim().is_empty(), egui::Button::new("Save key")).clicked() {
                     match keychain::save(provider, &self.api_key) {
-                        Ok(()) => { self.key_saved = true; self.status = "API key saved in macOS Keychain".into(); }
+                        Ok(()) => { self.key_saved = true; self.status = format!("API key saved in {}", credential_store_label()); }
                         Err(error) => self.status = format!("Could not save API key: {error}"),
                     }
                 }
@@ -667,7 +667,7 @@ impl App {
                     }
                 }
             });
-            if self.key_saved { ui.small("Saved locally in macOS Keychain."); }
+            if self.key_saved { ui.small(format!("Saved locally in {}.", credential_store_label())); }
             ui.horizontal(|ui| {
                 if ui.add_enabled(!self.api_key.trim().is_empty() && !self.checking_key,
                     egui::Button::new("Check key")).clicked() { self.check_key(); }
@@ -814,7 +814,7 @@ impl App {
             if self.busy { ui.spinner(); }
         });
         ui.small(&self.status);
-        ui.small("Paste text or an image with Command+V or Paste clipboard. Up to 5 files per message.");
+        ui.small(format!("Paste text or an image with {}+V or Paste clipboard. Up to 5 files per message.", paste_modifier_label()));
     }
 
     fn approval_dialog(&mut self, ctx: &egui::Context) {
@@ -916,13 +916,33 @@ impl eframe::App for App {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn config_path() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/MCP Commander/config.json"))
 }
 
+#[cfg(target_os = "windows")]
+fn config_path() -> Option<PathBuf> {
+    Some(PathBuf::from(std::env::var_os("APPDATA")?).join("MCP Commander/config.json"))
+}
+
+#[cfg(target_os = "macos")]
 fn legacy_config_path() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/Ollama MCP Agent/config.json"))
 }
+
+#[cfg(target_os = "windows")]
+fn legacy_config_path() -> Option<PathBuf> { None }
+
+#[cfg(target_os = "macos")]
+fn credential_store_label() -> &'static str { "macOS Keychain" }
+#[cfg(target_os = "windows")]
+fn credential_store_label() -> &'static str { "Windows Credential Manager" }
+
+#[cfg(target_os = "macos")]
+fn paste_modifier_label() -> &'static str { "Command" }
+#[cfg(target_os = "windows")]
+fn paste_modifier_label() -> &'static str { "Ctrl" }
 
 fn load_config() -> Config {
     let mut config: Config = config_path().and_then(|p| fs::read_to_string(p).ok())
@@ -937,7 +957,7 @@ fn load_config() -> Config {
 }
 
 fn save_config(config: &Config) -> anyhow::Result<()> {
-    let path = config_path().ok_or_else(|| anyhow::anyhow!("HOME is unavailable"))?;
+    let path = config_path().ok_or_else(|| anyhow::anyhow!("User application data directory is unavailable"))?;
     fs::create_dir_all(path.parent().unwrap())?;
     fs::write(path, serde_json::to_vec_pretty(config)?)?;
     Ok(())
