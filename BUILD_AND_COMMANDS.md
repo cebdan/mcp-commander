@@ -2,6 +2,10 @@
 
 Это отдельное приложение для macOS, написанное на Rust. Оно подключается к Ollama, OpenAI-совместимым API, Anthropic, Gemini и DeepSeek, а также к MCP-серверам локальных программ.
 
+## Установка из DMG
+
+Скачайте DMG для Intel или Apple Silicon со [страницы релиза](https://github.com/cebdan/mcp-commander/releases/tag/v2026.54). Откройте образ и перетащите **MCP Commander.app** на ярлык **Applications** в том же окне. После копирования запускайте приложение из папки «Программы».
+
 ## Сборка
 
 Нужны Rust (`cargo`) и инструменты командной строки Xcode. В Terminal:

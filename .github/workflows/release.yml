@@ -33,7 +33,7 @@ jobs:
         run: |
           codesign --verify --deep --strict 'dist/MCP Commander.app'
           if [ '${{ matrix.architecture }}' = Intel ]; then test "$(uname -m)" = x86_64; else test "$(uname -m)" = arm64; fi
-          hdiutil create -volname 'MCP Commander' -srcfolder 'dist/MCP Commander.app' -ov -format UDZO "dist/MCP-Commander-${GITHUB_REF_NAME#v}-macOS-${{ matrix.architecture }}.dmg"
+          ./tools/package-macos-dmg.sh 'dist/MCP Commander.app' "dist/MCP-Commander-${GITHUB_REF_NAME#v}-macOS-${{ matrix.architecture }}.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-${{ matrix.architecture }}

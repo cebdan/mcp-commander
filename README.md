@@ -8,7 +8,7 @@
 - [macOS Apple Silicon DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-macOS-ARM.dmg)
 - [Windows 11 x64 installer](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-Windows-x64-Setup.exe)
 
-[All releases](https://github.com/cebdan/mcp-commander/releases). The macOS apps use an ad hoc signature and the Windows installer is unsigned.
+[All releases](https://github.com/cebdan/mcp-commander/releases). On macOS, open the DMG and drag **MCP Commander.app** onto the **Applications** shortcut. The macOS apps use an ad hoc signature and the Windows installer is unsigned.
 
 Current build: **2026.54** (`2026.54.0` in Cargo and macOS version metadata).
 
