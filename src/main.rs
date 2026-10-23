@@ -35,7 +35,7 @@ struct Config {
     #[serde(default)]
     commander: Option<RoleModel>,
     #[serde(default)]
-    implementer_groups: Option<[ImplementerGroup; 2]>,
+    implementer_groups: Option<Vec<ImplementerGroup>>,
     #[serde(default, rename = "implementer_count", skip_serializing)]
     legacy_implementer_count: Option<usize>,
 }
@@ -72,17 +72,26 @@ impl Config {
         if self.implementer_groups.is_none() {
             let old_count = self.legacy_implementer_count.unwrap_or(3).clamp(2, MAX_IMPLEMENTERS);
             let first = (old_count + 1) / 2;
-            self.implementer_groups = Some([
+            self.implementer_groups = Some(vec![
                 ImplementerGroup { role: initial.clone(), count: first },
-                ImplementerGroup { role: initial, count: old_count - first },
+                ImplementerGroup { role: initial.clone(), count: old_count - first },
             ]);
         }
-        for group in self.implementer_groups.as_mut().unwrap() {
-            group.count = group.count.clamp(1, MAX_IMPLEMENTERS / 2);
+        let groups = self.implementer_groups.as_mut().unwrap();
+        if groups.is_empty() {
+            groups.push(ImplementerGroup { role: initial, count: 1 });
+        }
+        let mut total = 0;
+        groups.retain_mut(|group| {
+            if total == MAX_IMPLEMENTERS { return false; }
+            group.count = group.count.clamp(1, MAX_IMPLEMENTERS / 2)
+                .min(MAX_IMPLEMENTERS - total);
             if group.role.model.trim().is_empty() {
                 group.role.model = group.role.provider.default_model().into();
             }
-        }
+            total += group.count;
+            true
+        });
         if let Some(commander) = &mut self.commander {
             if commander.model.trim().is_empty() {
                 commander.model = commander.provider.default_model().into();
@@ -96,8 +105,8 @@ impl Config {
         &mut self.providers[index]
     }
 
-    fn groups(&self) -> &[ImplementerGroup; 2] { self.implementer_groups.as_ref().unwrap() }
-    fn groups_mut(&mut self) -> &mut [ImplementerGroup; 2] { self.implementer_groups.as_mut().unwrap() }
+    fn groups(&self) -> &[ImplementerGroup] { self.implementer_groups.as_deref().unwrap() }
+    fn groups_mut(&mut self) -> &mut Vec<ImplementerGroup> { self.implementer_groups.as_mut().unwrap() }
 
     fn worker_count(&self) -> usize { self.groups().iter().map(|g| g.count).sum() }
 }
@@ -525,12 +534,38 @@ impl App {
                 role_controls(ui, "commander", "Commander model",
                     self.config.commander.as_mut().unwrap(), &self.models);
                 ui.separator();
+                let mut total = self.config.worker_count();
+                let group_count = self.config.groups().len();
+                let mut remove_group = None;
+                let mut quantities_changed = false;
                 for (index, group) in self.config.groups_mut().iter_mut().enumerate() {
-                    role_controls(ui, &format!("group_{index}"),
-                        &format!("Implementer group {}", index + 1), &mut group.role, &self.models);
-                    ui.add(egui::Slider::new(&mut group.count, 1..=MAX_IMPLEMENTERS / 2)
-                        .text("Quantity"));
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(format!("Implementer group {}", index + 1)).strong());
+                        if ui.add_enabled(group_count > 1, egui::Button::new("Delete")).clicked() {
+                            remove_group = Some(index);
+                        }
+                    });
+                    role_controls(ui, &format!("group_{index}"), "Model", &mut group.role, &self.models);
+                    let previous_count = group.count;
+                    let max_count = (MAX_IMPLEMENTERS - (total - previous_count))
+                        .min(MAX_IMPLEMENTERS / 2);
+                    quantities_changed |= ui.add(egui::Slider::new(&mut group.count, 1..=max_count)
+                        .text("Quantity")).changed();
+                    total = total - previous_count + group.count;
                     ui.separator();
+                }
+                if let Some(index) = remove_group {
+                    self.config.groups_mut().remove(index);
+                    quantities_changed = true;
+                }
+                if ui.add_enabled(self.config.worker_count() < MAX_IMPLEMENTERS,
+                    egui::Button::new("Add group")).clicked() {
+                    let role = self.config.commander.as_ref().unwrap().clone();
+                    self.config.groups_mut().push(ImplementerGroup { role, count: 1 });
+                    quantities_changed = true;
+                }
+                if quantities_changed {
+                    self.workers.clear();
                 }
             }
         });
@@ -813,38 +848,42 @@ impl App {
         ui.label(format!("Available: {available} / {total}"));
         ui.separator();
         ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            ui.columns(2, |columns| {
-                let mut offset = 0;
-                for (group_index, group) in self.config.groups().iter().enumerate() {
-                    let column = &mut columns[group_index];
-                    column.label(RichText::new(format!("Implementer group {}", group_index + 1)).strong());
-                    column.small(format!("{} · {}", group.role.provider.label(), group.role.model));
-                    let group_available = self.workers.iter().skip(offset).take(group.count)
-                        .filter(|worker| !worker.busy).count();
-                    column.small(format!("Available: {group_available} / {}", group.count));
-                    column.add_space(8.0);
-                    for id in offset..offset + group.count {
-                        let worker = &self.workers[id];
-                        egui::Frame::default().fill(Color32::from_rgb(34, 38, 46))
-                            .corner_radius(8.0).inner_margin(10.0).show(column, |ui| {
-                                ui.label(RichText::new(format!("Agent {}", id + 1)).strong());
-                                ui.small(if worker.busy { "Working" } else { "Available" });
-                                ui.small(&worker.status);
-                                ui.separator();
-                                ui.small(RichText::new("Command from commander").strong());
-                                if worker.command.is_empty() { ui.small("No command yet."); }
-                                else { ScrollArea::vertical().max_height(85.0).show(ui, |ui| { ui.label(&worker.command); }); }
-                                if !worker.answer.is_empty() {
-                                    ui.separator();
-                                    ui.small(RichText::new("Result").strong());
-                                    ScrollArea::vertical().max_height(110.0).show(ui, |ui| { ui.label(&worker.answer); });
-                                }
-                            });
+            let mut offset = 0;
+            for (row, groups) in self.config.groups().chunks(2).enumerate() {
+                ui.columns(2, |columns| {
+                    for (column_index, group) in groups.iter().enumerate() {
+                        let group_index = row * 2 + column_index;
+                        let column = &mut columns[column_index];
+                        column.label(RichText::new(format!("Implementer group {}", group_index + 1)).strong());
+                        column.small(format!("{} · {}", group.role.provider.label(), group.role.model));
+                        let group_available = self.workers.iter().skip(offset).take(group.count)
+                            .filter(|worker| !worker.busy).count();
+                        column.small(format!("Available: {group_available} / {}", group.count));
                         column.add_space(8.0);
+                        for id in offset..offset + group.count {
+                            let worker = &self.workers[id];
+                            egui::Frame::default().fill(Color32::from_rgb(34, 38, 46))
+                                .corner_radius(8.0).inner_margin(10.0).show(column, |ui| {
+                                    ui.label(RichText::new(format!("Agent {}", id + 1)).strong());
+                                    ui.small(if worker.busy { "Working" } else { "Available" });
+                                    ui.small(&worker.status);
+                                    ui.separator();
+                                    ui.small(RichText::new("Command from commander").strong());
+                                    if worker.command.is_empty() { ui.small("No command yet."); }
+                                    else { ScrollArea::vertical().max_height(85.0).show(ui, |ui| { ui.label(&worker.command); }); }
+                                    if !worker.answer.is_empty() {
+                                        ui.separator();
+                                        ui.small(RichText::new("Result").strong());
+                                        ScrollArea::vertical().max_height(110.0).show(ui, |ui| { ui.label(&worker.answer); });
+                                    }
+                                });
+                            column.add_space(8.0);
+                        }
+                        offset += group.count;
                     }
-                    offset += group.count;
-                }
-            });
+                });
+                ui.add_space(12.0);
+            }
         });
     }
 
@@ -959,5 +998,37 @@ mod tests {
         assert_eq!(restored.groups()[0].count, 2);
         assert_eq!(restored.groups()[1].count, 1);
         assert_eq!(restored.worker_count(), 3);
+    }
+
+    #[test]
+    fn dynamic_groups_survive_settings_reload_and_respect_worker_limit() {
+        let mut config = Config::default();
+        config.normalize();
+        config.groups_mut().push(ImplementerGroup {
+            role: RoleModel { provider: Provider::DeepSeek, model: "deepseek-flash".into() },
+            count: 4,
+        });
+        let mut restored: Config = serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
+        restored.normalize();
+        assert_eq!(restored.groups().len(), 3);
+        assert_eq!(restored.groups()[2].role.provider, Provider::DeepSeek);
+        assert_eq!(restored.worker_count(), 7);
+
+        restored.groups_mut().push(ImplementerGroup {
+            role: RoleModel { provider: Provider::Ollama, model: "qwen3:8b".into() },
+            count: 4,
+        });
+        restored.normalize();
+        assert_eq!(restored.worker_count(), MAX_IMPLEMENTERS);
+        assert_eq!(restored.groups()[3].count, 1);
+    }
+
+    #[test]
+    fn empty_group_list_recovers_one_implementer() {
+        let mut config = Config::default();
+        config.implementer_groups = Some(vec![]);
+        config.normalize();
+        assert_eq!(config.groups().len(), 1);
+        assert_eq!(config.worker_count(), 1);
     }
 }
