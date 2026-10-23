@@ -1,5 +1,15 @@
 # MCP Commander
 
+![A demonic MCP coachman driving a herd of AI agents through an inferno](assets/coachman-agents-inferno.png)
+
+## Download version 2026.54
+
+- [macOS Intel DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-macOS-Intel.dmg)
+- [macOS Apple Silicon DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-macOS-ARM.dmg)
+- [Windows 11 x64 installer](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-Windows-x64-Setup.exe)
+
+[All releases](https://github.com/cebdan/mcp-commander/releases). The macOS apps use an ad hoc signature and the Windows installer is unsigned.
+
 Current build: **2026.54** (`2026.54.0` in Cargo and macOS version metadata).
 
 Russian build and command guide: [BUILD_AND_COMMANDS.md](BUILD_AND_COMMANDS.md).
@@ -10,7 +20,7 @@ A desktop app for macOS and Windows written in Rust. It can chat with Ollama, Op
 
 Build the app with `./build-app.sh`, then open `dist/MCP Commander.app`. The default Ollama endpoint is `http://127.0.0.1:11434`; change it in **Connections** if Ollama runs on another computer. Click **Refresh Ollama model list** to choose an installed model for a role.
 
-Click **Check for updates** in the sidebar to compare the installed version with the latest published GitHub Release. The result links to the release page when a newer version is available. Checking does not download or install software. Until the first release is published, the app reports that no release is available.
+Click **Check for updates** in the sidebar to compare the installed version with the latest published GitHub Release. The result links to the release page when a newer version is available. Checking does not download or install software.
 
 Turn on **Commander mode** in **Agent roles**. Choose a provider and model for the commander, then use **Add group** and **Delete** to manage implementer groups. Each group has its own provider, model, and quantity (1–4); the combined limit is eight implementers, and at least one group remains. The main area splits into commander chat on the left and an implementer dashboard on the right. The dashboard shows each agent's command, status, and result, plus available counts. The commander receives `delegate_to_implementer`, can assign independent tasks in parallel, and waits for their results before responding. Implementers use their own configured model and the enabled MCP servers; they cannot delegate further. **Stop** cancels the current request and its implementers. Turn off Commander mode for a single-agent chat.
 
