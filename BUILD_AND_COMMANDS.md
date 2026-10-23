@@ -4,7 +4,7 @@
 
 ## Установка из DMG
 
-Скачайте DMG для Intel или Apple Silicon со [страницы релиза](https://github.com/cebdan/mcp-commander/releases/tag/v2026.54). Откройте образ и перетащите **MCP Commander.app** на ярлык **Applications** в том же окне. После копирования запускайте приложение из папки «Программы».
+Скачайте DMG для Intel или Apple Silicon со [страницы релиза](https://github.com/cebdan/mcp-commander/releases/tag/v2026.55). Откройте образ и перетащите **MCP Commander.app** на ярлык **Applications** в том же окне. После копирования запускайте приложение из папки «Программы».
 
 ## Сборка
 

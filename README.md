@@ -2,15 +2,15 @@
 
 ![A demonic MCP coachman driving a herd of AI agents through an inferno](assets/coachman-agents-inferno.png)
 
-## Download version 2026.54
+## Download version 2026.55
 
-- [macOS Intel DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-macOS-Intel.dmg)
-- [macOS Apple Silicon DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-macOS-ARM.dmg)
-- [Windows 11 x64 installer](https://github.com/cebdan/mcp-commander/releases/download/v2026.54/MCP-Commander-2026.54-Windows-x64-Setup.exe)
+- [macOS Intel DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.55/MCP-Commander-2026.55-macOS-Intel.dmg)
+- [macOS Apple Silicon DMG](https://github.com/cebdan/mcp-commander/releases/download/v2026.55/MCP-Commander-2026.55-macOS-ARM.dmg)
+- [Windows 11 x64 installer](https://github.com/cebdan/mcp-commander/releases/download/v2026.55/MCP-Commander-2026.55-Windows-x64-Setup.exe)
 
-[All releases](https://github.com/cebdan/mcp-commander/releases). On macOS, open the DMG and drag **MCP Commander.app** onto the **Applications** shortcut. The macOS apps use an ad hoc signature and the Windows installer is unsigned.
+[All releases](https://github.com/cebdan/mcp-commander/releases). On macOS, open the DMG and drag **MCP Commander.app** onto the **Applications** shortcut. On Windows, install the EXE and launch MCP Commander from the Start menu or desktop shortcut; no terminal is needed. The macOS apps use an ad hoc signature and the Windows installer is unsigned.
 
-Current build: **2026.54** (`2026.54.0` in Cargo and macOS version metadata).
+Current build: **2026.55** (`2026.55.0` in Cargo and macOS version metadata).
 
 Russian build and command guide: [BUILD_AND_COMMANDS.md](BUILD_AND_COMMANDS.md).
 
@@ -38,7 +38,7 @@ The non-secret configuration is stored at `~/Library/Application Support/MCP Com
 
 Requires Rust and the macOS command-line tools. From this directory, run `./build-app.sh`. The resulting `.app` is in `dist/`.
 
-Pushing a `v2026.54` tag triggers `.github/workflows/release.yml`. It builds DMG packages on macOS Intel and ARM runners and a Windows 11 x64 compatible installer on a Windows runner. The release is published only after all three packages build successfully. macOS packages have an ad hoc signature; the Windows installer has no publisher signature.
+Pushing a `v2026.55` tag triggers `.github/workflows/release.yml`. It builds DMG packages on macOS Intel and ARM runners and a Windows 11 x64 compatible installer on a Windows runner. The release is published only after all three packages build successfully. macOS packages have an ad hoc signature; the Windows installer has no publisher signature.
 
 ## Limits
 

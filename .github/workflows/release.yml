@@ -56,6 +56,15 @@ jobs:
         run: |
           cargo test --locked --all-targets
           cargo build --locked --release
+      - name: Verify GUI executable
+        shell: pwsh
+        run: |
+          $exe = [System.IO.File]::ReadAllBytes('target/release/mcp-commander.exe')
+          $peOffset = [BitConverter]::ToInt32($exe, 0x3C)
+          if ([BitConverter]::ToUInt32($exe, $peOffset) -ne 0x4550) { throw 'Invalid PE signature' }
+          $subsystem = [BitConverter]::ToUInt16($exe, $peOffset + 24 + 68)
+          if ($subsystem -ne 2) { throw "Expected Windows GUI subsystem (2), got $subsystem" }
+          Write-Host 'Windows GUI subsystem verified; no console window is required.'
       - name: Build installer
         shell: pwsh
         run: |
